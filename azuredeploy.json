@@ -1,0 +1,131 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        
+    },
+    "variables": {
+
+        "WS-SRV05WindowsOSVersion": "2012-R2-Datacenter",
+        "WS-SRV05AdminPassword": "P@ssw0rd4WS!",
+        "WS-SRV05AdminUsername": "WorkshopAdmin",
+        "WS-SRV05Name": "WS-SRV05",
+
+        "StorageName": "[concat('store', uniqueString(subscription().id))]",  
+
+        "WS-SRV05-PUBIPDnsName": "[concat('nic5', uniqueString(subscription().id))]",
+
+        "WS-SRV05ImagePublisher": "MicrosoftWindowsServer",
+        "WS-SRV05ImageOffer": "WindowsServer",
+        "WS-SRV05OSDiskName": "WS-SRV05OSDisk",
+        "WS-SRV05VmSize": "Standard_D2",
+
+        "WS-SRV05StorageAccountContainerName": "vhds",
+
+        "WS-SRV05OSDiskName": "wssrv05osdisk",
+
+        "subnetName": "Subnet-1",
+        "existingVirtualNetworkName": "PREMIER-WS-VNET",
+        "RG": "[resourceGroup().name]",
+
+        "vnetID": "[resourceId(variables('RG'), 'Microsoft.Network/virtualNetworks', variables('existingVirtualNetworkName'))]",
+        "subnetRef": "[concat(variables('vnetID'),'/subnets/', variables('subnetName'))]",
+
+        "WS-SRV05StorageAccountContainerName": "vhds",
+        "WS-SRV05NicName": "[concat(variables('WS-SRV05Name'), 'NetworkInterface')]",
+        "WS-SRV05-PUBIPName": "WS-SRV05-PUBIP"
+    },
+    "resources": [
+        {
+            "name": "[variables('WS-SRV05NicName')]",
+            "type": "Microsoft.Network/networkInterfaces",
+            "location": "[resourceGroup().location]",
+            "apiVersion": "2015-06-15",
+            "dependsOn": [ 
+                "[concat('Microsoft.Network/publicIPAddresses/', variables('WS-SRV05-PUBIPName'))]"
+            ],
+            "tags": {
+                "displayName": "WS-SRV05Nic"
+            },
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "ipconfig1",
+                        "properties": {
+                            "privateIPAllocationMethod": "Dynamic",
+                            "subnet": {
+                                "id": "[variables('subnetRef')]"
+                            },
+                            "publicIPAddress": {
+                                "id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('WS-SRV05-PUBIPName'))]"
+                            }
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "name": "[variables('WS-SRV05Name')]",
+            "type": "Microsoft.Compute/virtualMachines",
+            "location": "[resourceGroup().location]",
+            "apiVersion": "2015-06-15",
+            "dependsOn": [
+                "[concat('Microsoft.Network/networkInterfaces/', variables('WS-SRV05NicName'))]"
+            ],
+            "tags": {
+                "displayName": "WS-SRV05"
+            },
+            "properties": {
+                "hardwareProfile": {
+                    "vmSize": "[variables('WS-SRV05VmSize')]"
+                },
+                "osProfile": {
+                    "computerName": "[variables('WS-SRV05Name')]",
+                    "adminUsername": "[variables('WS-SRV05AdminUsername')]",
+                    "adminPassword": "[variables('WS-SRV05AdminPassword')]"
+                },
+                "storageProfile": {
+                    "imageReference": {
+                        "publisher": "[variables('WS-SRV05ImagePublisher')]",
+                        "offer": "[variables('WS-SRV05ImageOffer')]",
+                        "sku": "[variables('WS-SRV05WindowsOSVersion')]",
+                        "version": "latest"
+                    },
+                    "osDisk": {
+                        "name": "WS-SRV05OSDisk",
+                        "vhd": {
+                            "uri": "[concat('http://', variables('StorageName'), '.blob.core.windows.net/', variables('WS-SRV05StorageAccountContainerName'), '/', variables('WS-SRV05OSDiskName'), '.vhd')]"
+                        },
+                        "caching": "ReadWrite",
+                        "createOption": "FromImage"
+                    }
+                },
+                "networkProfile": {
+                    "networkInterfaces": [
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('WS-SRV05NicName'))]"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "name": "[variables('WS-SRV05-PUBIPName')]",
+            "type": "Microsoft.Network/publicIPAddresses",
+            "location": "[resourceGroup().location]",
+            "apiVersion": "2015-06-15",
+            "dependsOn": [ ],
+            "tags": {
+                "displayName": "WS-SRV05-PUBIP"
+            },
+            "properties": {
+                "publicIPAllocationMethod": "Dynamic",
+                "dnsSettings": {
+                    "domainNameLabel": "[variables('WS-SRV05-PUBIPDnsName')]"
+                }
+            }
+        }
+    ],
+    "outputs": {
+    }
+}
